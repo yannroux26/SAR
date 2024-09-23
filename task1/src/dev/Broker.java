@@ -35,12 +35,11 @@ public class Broker {
 		if (destbroker == null)
 			return null;
 
-		Rdv rdv = new Rdv(this, destbroker, port);
-		rdvmap.put(port, rdv);
-		Channel c = rdv.connect();
-		rdvmap.remove(port, rdv);
-
-		return c;
+		while (!destbroker.rdvmap.containsKey(port))
+			wait();	
+		
+		Rdv rdv = destbroker.rdvmap.get(port);
+		return rdv.connect();
 	}
 
 	private synchronized boolean addport(int port) {

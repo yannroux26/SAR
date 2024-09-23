@@ -1,14 +1,16 @@
 package dev;
 
 public class Channel {
-	boolean disconnected;
+	BooleanWrapper disconnected;
+	private boolean islocaldisconnected;
 	CircularBuffer inbuffer;
 	CircularBuffer outbuffer;
 
-	Channel(CircularBuffer inbuffer, CircularBuffer outbuffer) {
+	Channel(CircularBuffer inbuffer, CircularBuffer outbuffer, BooleanWrapper disconnected) {
 		this.inbuffer = inbuffer;
 		this.outbuffer = outbuffer;
-		this.disconnected = false;
+		this.disconnected = disconnected;
+		this.islocaldisconnected = false;
 	}
 
 	synchronized int read(byte[] bytes, int offset, int length) throws InterruptedException {
@@ -16,12 +18,14 @@ public class Channel {
 		while (nb_bytes < length) {
 			if (inbuffer.empty())
 				wait();
-			else if (disconnected)
-				return -1;
+			if (islocaldisconnected)
+				throw new InterruptedException();
 			else {
 				bytes[offset + nb_bytes] = inbuffer.pull();
 				notifyAll();
 			}
+			if(disconnected.value && inbuffer.empty())
+				islocaldisconnected = true;
 		}
 		return nb_bytes;
 	}
@@ -31,8 +35,8 @@ public class Channel {
 		while (nb_bytes < length) {
 			if (inbuffer.full())
 				wait();
-			else if (disconnected)
-				return -1;
+			else if (islocaldisconnected)
+				throw new InterruptedException();
 			else {
 				inbuffer.push(bytes[offset + nb_bytes]);
 				notifyAll();
@@ -42,10 +46,11 @@ public class Channel {
 	}
 
 	void disconnect() {
-		this.disconnected = true;
+		this.disconnected.value = true;
+		this.islocaldisconnected = true;
 	}
 
 	boolean disconnected() {
-		return disconnected;
+		return islocaldisconnected;
 	}
 }

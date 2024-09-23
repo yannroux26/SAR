@@ -8,7 +8,8 @@ public class Task extends Thread {
 		this.broker = b;
 		this.runnable = r;
 	}
-	Broker getBroker(){//à mettre en static
-		return this.broker;
+	static Broker getBroker(){
+		Task task =(Task) Thread.currentThread();
+		return task.broker;
 	}
 }

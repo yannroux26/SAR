@@ -1,46 +1,34 @@
 package dev;
 
 public class Rdv {
-	Broker broker1;
-	Broker broker2;
+	Broker broker;
 	int port;
 	Channel channel;
-	boolean accepting;
 
 	Rdv(Broker broker, int port) {// accept
-		this.broker1 = broker;
+		this.broker = broker;
 		this.port = port;
-		this.accepting = false;
-		notifyAll();
-	}
-
-	Rdv(Broker broker1, Broker broker2, int port) {// connect
-		this.broker1 = broker1;
-		this.broker2 = broker2;
-		this.port = port;
-		this.accepting = false;
 		notifyAll();
 	}
 
 	public Channel accept() throws InterruptedException {
-		this.accepting = true;
-		notifyAll();
 		while (channel == null)
 			wait();
 		return channel;
 	}
 
-	public Channel connect() throws InterruptedException {
-		while ((!broker2.rdvmap.containsKey(port)) || (!broker2.rdvmap.get(port).accepting))
-			wait();
+	public synchronized Channel connect() throws InterruptedException {
+		if (channel!=null)
+			return null;
 		
 		CircularBuffer cb1 = new CircularBuffer(32);
 		CircularBuffer cb2 = new CircularBuffer(32);
+		BooleanWrapper disconnected = new BooleanWrapper(false);
 		
-		Channel achannel = new Channel(cb1, cb2);
-		Channel cchannel = new Channel(cb2, cb1);
+		Channel achannel = new Channel(cb1, cb2,disconnected);
+		Channel cchannel = new Channel(cb2, cb1,disconnected);
 		
-		broker2.rdvmap.get(port).channel = achannel;
+		this.channel = achannel;
 		notifyAll();
 		return cchannel;
 	}
