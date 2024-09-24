@@ -25,8 +25,8 @@ public class Rdv {
 		CircularBuffer cb2 = new CircularBuffer(32);
 		BooleanWrapper disconnected = new BooleanWrapper(false);
 		
-		Channel achannel = new Channel(cb1, cb2,disconnected);
-		Channel cchannel = new Channel(cb2, cb1,disconnected);
+		Channel achannel = new Channel(cb1, cb2,disconnected,port);
+		Channel cchannel = new Channel(cb2, cb1,disconnected,port);
 		
 		this.channel = achannel;
 		notifyAll();

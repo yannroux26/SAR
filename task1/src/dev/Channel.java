@@ -5,12 +5,14 @@ public class Channel {
 	private boolean islocaldisconnected;
 	CircularBuffer inbuffer;
 	CircularBuffer outbuffer;
+	private int port;
 
-	Channel(CircularBuffer inbuffer, CircularBuffer outbuffer, BooleanWrapper disconnected) {
+	Channel(CircularBuffer inbuffer, CircularBuffer outbuffer, BooleanWrapper disconnected,int port) {
 		this.inbuffer = inbuffer;
 		this.outbuffer = outbuffer;
 		this.disconnected = disconnected;
 		this.islocaldisconnected = false;
+		this.port= port;
 	}
 
 	synchronized int read(byte[] bytes, int offset, int length) throws InterruptedException {
@@ -48,6 +50,8 @@ public class Channel {
 	void disconnect() {
 		this.disconnected.value = true;
 		this.islocaldisconnected = true;
+		Broker broker =((Task) Thread.currentThread()).getBroker();
+		broker.usedPort.remove(port);
 	}
 
 	boolean disconnected() {
