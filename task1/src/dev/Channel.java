@@ -3,19 +3,22 @@ package dev;
 public class Channel {
 	BooleanWrapper disconnected;
 	private boolean islocaldisconnected;
-	CircularBuffer inbuffer;
-	CircularBuffer outbuffer;
+	CircularBuffer inbuffer, outbuffer;
 	private int port;
 
-	Channel(CircularBuffer inbuffer, CircularBuffer outbuffer, BooleanWrapper disconnected,int port) {
-		this.inbuffer = inbuffer;
-		this.outbuffer = outbuffer;
-		this.disconnected = disconnected;
-		this.islocaldisconnected = false;
-		this.port= port;
+	protected Channel(Broker broker, int port) {
+		
 	}
+	
+//	Channel(CircularBuffer inbuffer, CircularBuffer outbuffer, BooleanWrapper disconnected,int port) {
+//		this.inbuffer = inbuffer;
+//		this.outbuffer = outbuffer;
+//		this.disconnected = disconnected;
+//		this.islocaldisconnected = false;
+//		this.port= port;
+//	}
 
-	synchronized int read(byte[] bytes, int offset, int length) throws InterruptedException {
+	public synchronized int read(byte[] bytes, int offset, int length) throws InterruptedException {
 		int nb_bytes = 0;
 		while (nb_bytes < length) {
 			if (inbuffer.empty())
@@ -27,12 +30,12 @@ public class Channel {
 				notifyAll();
 			}
 			if(disconnected.value && inbuffer.empty())
-				islocaldisconnected = true;
+				disconnect();
 		}
 		return nb_bytes;
 	}
 
-	int write(byte[] bytes, int offset, int length) throws InterruptedException {
+	public int write(byte[] bytes, int offset, int length) throws InterruptedException {
 		int nb_bytes = 0;
 		while (nb_bytes < length) {
 			if (inbuffer.full())
@@ -47,14 +50,14 @@ public class Channel {
 		return nb_bytes;
 	}
 
-	void disconnect() {
+	public void disconnect() {
 		this.disconnected.value = true;
 		this.islocaldisconnected = true;
-		Broker broker =((Task) Thread.currentThread()).getBroker();
+		Broker broker =Task.getBroker();
 		broker.usedPort.remove(port);
 	}
 
-	boolean disconnected() {
+	public boolean disconnected() {
 		return islocaldisconnected;
 	}
 }

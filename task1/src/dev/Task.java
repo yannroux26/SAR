@@ -1,14 +1,20 @@
 package dev;
 
 public class Task extends Thread {
-	Broker broker;
+	protected Broker broker;
 	Runnable runnable;
 	
-	Task(Broker b, Runnable r){
+	public Task(Broker b, Runnable r){
 		this.broker = b;
 		this.runnable = r;
 	}
-	static Broker getBroker(){
+	
+	@Override
+	public void run(){
+		runnable.run();
+	}
+	
+	public static Broker getBroker(){
 		Task task =(Task) Thread.currentThread();
 		return task.broker;
 	}
