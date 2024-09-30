@@ -1,63 +1,120 @@
 package dev;
 
 public class Channel {
-	BooleanWrapper disconnected;
-	private boolean islocaldisconnected;
+	Broker broker;
+	int port;
 	CircularBuffer inbuffer, outbuffer;
-	private int port;
+	Channel rch;
+	String rname;
+	private boolean disconnected;
+	boolean remotedisconnected;
 
 	protected Channel(Broker broker, int port) {
-		
-	}
-	
-//	Channel(CircularBuffer inbuffer, CircularBuffer outbuffer, BooleanWrapper disconnected,int port) {
-//		this.inbuffer = inbuffer;
-//		this.outbuffer = outbuffer;
-//		this.disconnected = disconnected;
-//		this.islocaldisconnected = false;
-//		this.port= port;
-//	}
-
-	public synchronized int read(byte[] bytes, int offset, int length) throws InterruptedException {
-		int nb_bytes = 0;
-		while (nb_bytes < length) {
-			if (inbuffer.empty())
-				wait();
-			if (islocaldisconnected)
-				throw new InterruptedException();
-			else {
-				bytes[offset + nb_bytes] = inbuffer.pull();
-				notifyAll();
-			}
-			if(disconnected.value && inbuffer.empty())
-				disconnect();
-		}
-		return nb_bytes;
+		this.broker = broker;
+		this.port = port;
+		this.inbuffer = new CircularBuffer(64);
 	}
 
-	public int write(byte[] bytes, int offset, int length) throws InterruptedException {
-		int nb_bytes = 0;
-		while (nb_bytes < length) {
-			if (inbuffer.full())
-				wait();
-			else if (islocaldisconnected)
-				throw new InterruptedException();
-			else {
-				inbuffer.push(bytes[offset + nb_bytes]);
-				notifyAll();
+	void connect(Channel remotechannel, String name) {
+		this.rch = remotechannel;
+		remotechannel.rch = this;
+		this.outbuffer = remotechannel.inbuffer;
+		rch.outbuffer = this.inbuffer;
+		this.rname = name;
+	}
+
+	public synchronized int read(byte[] bytes, int offset, int length)
+			throws InterruptedException, DisconnectedException {
+		if (disconnected)
+			throw new DisconnectedException();
+		int nbytes = 0;
+		try {
+			while (nbytes == 0) {
+				if (inbuffer.empty()) {
+					synchronized (inbuffer) {
+						while (inbuffer.empty()) {
+							if (disconnected || remotedisconnected)
+								throw new DisconnectedException();
+							try {
+								inbuffer.wait();
+							} catch (InterruptedException e) {
+								// nothing to do here
+							}
+						}
+					}
+				}
+				while (nbytes < length && !inbuffer.empty()) {
+					byte val = inbuffer.pull();
+					bytes[offset + nbytes] = val;
+					nbytes++;
+				}
+				if (nbytes != 0)
+					synchronized (outbuffer) {
+						outbuffer.notify();
+					}
 			}
+		} catch (DisconnectedException e) {
+			if (!disconnected) {
+				disconnected = true;
+				synchronized (outbuffer) {
+					outbuffer.notifyAll();
+				}
+			}
+			throw e;
 		}
-		return nb_bytes;
+		return nbytes;
+	}
+
+	public synchronized int write(byte[] bytes, int offset, int length)
+			throws InterruptedException, DisconnectedException {
+		if (disconnected)
+			throw new DisconnectedException();
+		int nbytes = 0;
+		while (nbytes == 0) {
+				if (outbuffer.full()) {
+					synchronized (outbuffer) {
+						while (outbuffer.full()) {
+							if (disconnected)
+								throw new DisconnectedException();
+							if (remotedisconnected)
+								return length;
+							try {
+								outbuffer.wait();
+							} catch (InterruptedException e) {
+								// nothing to do here
+							}
+						}
+					}
+				}
+				while (nbytes < length && !outbuffer.full()) {
+					byte val = bytes[offset + nbytes];
+					outbuffer.push(val);
+					nbytes++;
+				}
+				if (nbytes != 0)
+					synchronized (outbuffer) {
+						outbuffer.notify();
+					}
+			}
+		return nbytes;
 	}
 
 	public void disconnect() {
-		this.disconnected.value = true;
-		this.islocaldisconnected = true;
-		Broker broker =Task.getBroker();
-		broker.usedPort.remove(port);
+		synchronized (this) {
+			if (disconnected)
+				return;
+			disconnected = true;
+		}
+		rch.remotedisconnected = true;
+		synchronized (outbuffer) {
+			outbuffer.notifyAll();
+		}
+		synchronized (inbuffer) {
+			inbuffer.notifyAll();
+		}
 	}
 
 	public boolean disconnected() {
-		return islocaldisconnected;
+		return disconnected;
 	}
 }

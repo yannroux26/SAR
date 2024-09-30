@@ -7,6 +7,7 @@ public class Task extends Thread {
 	public Task(Broker b, Runnable r){
 		this.broker = b;
 		this.runnable = r;
+		this.start();
 	}
 	
 	@Override
