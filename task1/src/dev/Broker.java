@@ -16,7 +16,7 @@ public class Broker {
 		bmanager.add(this);
 	}
 
-	//Récupère l'autre broker et attends qu'il créé le rdv
+	// Récupère l'autre broker et attends qu'il créé le rdv
 	public Channel connect(String name, int port) {
 		Broker b = bmanager.get(name);
 		if (b == null)
@@ -54,7 +54,7 @@ public class Broker {
 			}
 			rdvmap.remove(rdv);
 		}
-		return rdv.connect(b,port);
+		return rdv.connect(b, port);
 	}
 
 	public String getName() {

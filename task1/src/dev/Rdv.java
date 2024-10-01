@@ -17,13 +17,13 @@ public class Rdv {
 		}
 	}
 
-	synchronized Channel connect(Broker cb,int port) {
+	synchronized Channel connect(Broker cb, int port) {
 		this.cb = cb;
 		cc = new Channel(cb, port);
-		if (ac!=null) {
-			ac.connect(cc,cb.getName());
+		if (ac != null) {
+			ac.connect(cc, cb.getName());
 			notify();
-		}else 
+		} else
 			_wait();
 		return cc;
 	}
@@ -31,9 +31,9 @@ public class Rdv {
 	synchronized Channel accept(Broker ab, int port) {
 		this.ab = ab;
 		ac = new Channel(ab, port);
-		if (cc!=null) {
-			ac.connect(cc,ab.getName());
-		} else 
+		if (cc != null) {
+			ac.connect(cc, ab.getName());
+		} else
 			_wait();
 		return ac;
 	}

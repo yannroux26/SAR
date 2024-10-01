@@ -67,35 +67,36 @@ public class Channel {
 
 	public synchronized int write(byte[] bytes, int offset, int length)
 			throws InterruptedException, DisconnectedException {
+
 		if (disconnected)
 			throw new DisconnectedException();
 		int nbytes = 0;
 		while (nbytes == 0) {
-				if (outbuffer.full()) {
-					synchronized (outbuffer) {
-						while (outbuffer.full()) {
-							if (disconnected)
-								throw new DisconnectedException();
-							if (remotedisconnected)
-								return length;
-							try {
-								outbuffer.wait();
-							} catch (InterruptedException e) {
-								// nothing to do here
-							}
+			if (outbuffer.full()) {
+				synchronized (outbuffer) {
+					while (outbuffer.full()) {
+						if (disconnected)
+							throw new DisconnectedException();
+						if (remotedisconnected)
+							return length;
+						try {
+							outbuffer.wait();
+						} catch (InterruptedException e) {
+							// nothing to do here
 						}
 					}
 				}
-				while (nbytes < length && !outbuffer.full()) {
-					byte val = bytes[offset + nbytes];
-					outbuffer.push(val);
-					nbytes++;
-				}
-				if (nbytes != 0)
-					synchronized (outbuffer) {
-						outbuffer.notify();
-					}
 			}
+			while (nbytes < length && !outbuffer.full()) {
+				byte val = bytes[offset + nbytes];
+				outbuffer.push(val);
+				nbytes++;
+			}
+			if (nbytes != 0)
+				synchronized (outbuffer) {
+					outbuffer.notify();
+				}
+		}
 		return nbytes;
 	}
 
