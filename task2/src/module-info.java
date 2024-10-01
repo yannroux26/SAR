@@ -5,5 +5,5 @@
  * @author yann
  *
  */
-module task1 {
+module task2 {
 }
