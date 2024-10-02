@@ -24,7 +24,7 @@ public class Channel {
 	}
 
 	public synchronized int read(byte[] bytes, int offset, int length)
-			throws InterruptedException, DisconnectedException {
+			throws DisconnectedException {
 		if (disconnected)
 			throw new DisconnectedException();
 		int nbytes = 0;
@@ -66,7 +66,7 @@ public class Channel {
 	}
 
 	public synchronized int write(byte[] bytes, int offset, int length)
-			throws InterruptedException, DisconnectedException {
+			throws DisconnectedException {
 
 		if (disconnected)
 			throw new DisconnectedException();

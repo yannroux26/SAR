@@ -1,5 +1,7 @@
 package tests;
 
+import java.nio.ByteBuffer;
+
 import dev.Broker;
 import dev.Channel;
 import dev.DisconnectedException;
@@ -50,20 +52,23 @@ public class Main {
 
 				try {
 					for (int i = 0; i < 256; i++) {
-						byte[] bytes = new byte[] { (byte) i };
+						// we write the int
+						byte[] bytes = ByteBuffer.allocate(4).putInt(i).array();
+						int nbw = 0;
+						while (nbw < 4)
+							nbw += c.write(bytes, nbw, bytes.length - nbw);
 
-						c.write(bytes, 0, bytes.length);
+						// we read the int
+						byte[] bytesr = new byte[4];
+						int nbr = 0;
+						while (nbr < 4)
+							nbr += c.read(bytesr, nbr, bytes.length - nbr);
 
-						byte[] bytesr = new byte[256];
+						int repecho = ByteBuffer.wrap(bytesr).getInt();
 
-						c.read(bytesr, i, bytes.length);
-
-						assert (bytes[0] == bytesr[i]);
-						System.out.println(bytesr[i] + " est passé par l echo");
+						assert (repecho == i);
+						System.out.println("echo "+repecho);
 					}
-				} catch (InterruptedException e2) {
-					// TODO Auto-generated catch block
-					e2.printStackTrace();
 				} catch (DisconnectedException e3) {
 					System.out.println("Le serveur s'est déconnecté");
 				}
@@ -129,9 +134,6 @@ public class Main {
 						System.out.println(nbw + " bytes has been wrote instead of " + l);
 					}
 
-				} catch (InterruptedException e2) {
-					// TODO Auto-generated catch block
-					e2.printStackTrace();
 				} catch (DisconnectedException e3) {
 					System.out.println("serv is in dandling mode");
 				}
@@ -158,9 +160,6 @@ public class Main {
 					assert (rep.equals(sentence));
 					System.out.println(rep + " est passé par l echo");
 
-				} catch (InterruptedException e2) {
-					// TODO Auto-generated catch block
-					e2.printStackTrace();
 				} catch (DisconnectedException e3) {
 					System.out.println("client is in dandling mode");
 				}
@@ -210,7 +209,7 @@ public class Main {
 					byte[] bytesr = new byte[l];
 
 					int nbpassage = l / 63;
-					int nbr =0;
+					int nbr = 0;
 					for (int i = 0; i < nbpassage; i++) {
 						nbr += c.read(bytesr, i * 63, 63);
 						System.out.println(nbr + " bytes lus par le serv");
@@ -241,9 +240,6 @@ public class Main {
 						System.out.println(nbw + " bytes écrits par le serv");
 					}
 
-				} catch (InterruptedException e2) {
-					// TODO Auto-generated catch block
-					e2.printStackTrace();
 				} catch (DisconnectedException e3) {
 					System.out.println("serv is in dandling mode");
 				}
@@ -277,13 +273,13 @@ public class Main {
 					int nbpassage = l / 63;
 					int nbr = 0;
 					for (int i = 0; i < nbpassage; i++) {
-						nbr+=c.read(bytesr, i * 63, 63);
+						nbr += c.read(bytesr, i * 63, 63);
 						System.out.println(nbw + " bytes lus par le client");
 					}
 					if (l % 63 != 0) {
-						nbr+=c.read(bytesr, nbpassage * 63, l - 63 * nbpassage);
+						nbr += c.read(bytesr, nbpassage * 63, l - 63 * nbpassage);
 						System.out.println(nbw + " bytes lus par le client");
-						}
+					}
 
 					String rep = new String(bytesr);
 					assert (rep.equals(paragraph));
@@ -291,9 +287,6 @@ public class Main {
 
 					System.out.println("FIN LECTURE PAR LE CLIENT");
 
-				} catch (InterruptedException e2) {
-					// TODO Auto-generated catch block
-					e2.printStackTrace();
 				} catch (DisconnectedException e3) {
 					System.out.println("client is in dandling mode");
 				}
