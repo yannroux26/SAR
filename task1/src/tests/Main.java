@@ -10,9 +10,12 @@ import dev.Task;
 public class Main {
 
 	public static void main(String[] args) {
-		test1();
-		// test2();
-		// test3();
+//		boolean t1 = test1();
+//		assert (t1);
+		boolean t2 = test2();
+		assert (t2);
+//		boolean t3 = test3();
+//		assert (t3);
 		System.out.println("That's all folks");
 	}
 
@@ -67,7 +70,7 @@ public class Main {
 						int repecho = ByteBuffer.wrap(bytesr).getInt();
 
 						assert (repecho == i);
-						System.out.println("echo "+repecho);
+						System.out.println("echo " + repecho);
 					}
 				} catch (DisconnectedException e3) {
 					System.out.println("Le serveur s'est déconnecté");
@@ -106,33 +109,43 @@ public class Main {
 			Broker bclient = new Broker("client");
 
 			Task taserv = new Task(bserv, () -> {
-				Channel c = bserv.accept(8080);
-
+				Channel c = bserv.accept(8081);
+				System.out.println("server accepts");
 				try {
-					byte[] bytes = sentence.getBytes();
-					int l = bytes.length;
-					byte[] bytesr = new byte[l];
+					// we read the int first
+					byte[] bytesint = new byte[4];
+					int nbr = 0;
+					while (nbr < 4)
+						nbr += c.read(bytesint, nbr, 4 - nbr);
 
-					int nbread = c.read(bytesr, 0, l);
+					int sizemsg = ByteBuffer.wrap(bytesint).getInt();
+					System.out.println("serv lit " + sizemsg);
+					byte[] bytesr = new byte[sizemsg];
 
+					// then we read the message
+					System.out.println("AAAAAAAAAAAA");
+					nbr = 0;
+					while (nbr < sizemsg) {
+						System.out.println("AAAAAAAAAAAA");
+						nbr += c.read(bytesr, nbr, sizemsg - nbr);
+						System.out.println("serv have read " + nbr+"bytes");
+						}
+					
+					
+					// test si le message lu est bon
 					String rep = new String(bytesr);
-					if (nbread != l) {
-						System.out.println(nbread + " bytes has been read instead of " + l);
-					}
+					System.out.println("serv lit " + rep);
+					assert (rep.equals(sentence)):"The server read "+rep+" instead of "+sentence;
 
-					if (!rep.equals(sentence)) {
-						System.out.println(
-								"The sentence has been misread, read :\n" + rep + "\ninstead of:\n" + sentence);
-						// return false;
-					}
+					// we write the int first
+					int nbw = 0;
+					while (nbw < 4)
+						nbw += c.write(bytesint, nbw, 4 - nbw);
 
-					System.out.println("serv read :" + rep);
-
-					int nbw = c.write(bytesr, 0, l);
-
-					if (nbw != l) {
-						System.out.println(nbw + " bytes has been wrote instead of " + l);
-					}
+					// then we write the message
+					nbw = 0;
+					while (nbw < sizemsg)
+						nbw += c.read(bytesr, nbw, sizemsg - nbw);
 
 				} catch (DisconnectedException e3) {
 					System.out.println("serv is in dandling mode");
@@ -144,21 +157,49 @@ public class Main {
 			});
 
 			Task taclient = new Task(bclient, () -> {
-				Channel c = bclient.connect("serveur", 8080);
+				Channel c = bclient.connect("serveur", 8081);
+				System.out.println("client connects");
 
 				try {
 					byte[] bytes = sentence.getBytes();
 					int l = bytes.length;
+					byte[] bytesint = ByteBuffer.allocate(4).putInt(l).array();
 
-					c.write(bytes, 0, l);
+					// we write the int first
+					int nbw = 0;
+					while (nbw < 4)
+						nbw += c.write(bytesint, nbw, 4 - nbw);
+					System.out.println("client write " + l);
 
-					byte[] bytesr = new byte[l];
+					// then we write the message
+					nbw = 0;
+					while (nbw < l)
+						nbw += c.read(bytes, nbw, l - nbw);
+					System.out.println("client write " + sentence);
 
-					c.read(bytesr, 0, l);
+					// we read the int first
+					bytesint = new byte[4];
+					int nbr = 0;
+					while (nbr < 4)
+						nbr += c.read(bytesint, nbr, 4 - nbr);
+					
+					// test the int value
+					int sizemsg = ByteBuffer.wrap(bytesint).getInt();
+					System.out.println("client lit " + sizemsg);
+					assert (sizemsg == l):"Client read a message of size "+sizemsg+" instead of the "+l+"that has been send";
 
+					// then we read the message
+					byte[] bytesr = new byte[sizemsg];
+					nbr = 0;
+					while (nbr < sizemsg)
+						nbr += c.read(bytesr, nbr, sizemsg - nbr);
+					
+					// test si le message lu est bon
 					String rep = new String(bytesr);
+					System.out.println("client lit " + rep);
 					assert (rep.equals(sentence));
-					System.out.println(rep + " est passé par l echo");
+
+					System.out.println("echo " + rep);
 
 				} catch (DisconnectedException e3) {
 					System.out.println("client is in dandling mode");
@@ -200,7 +241,7 @@ public class Main {
 			Broker bclient = new Broker("client");
 
 			Task taserv = new Task(bserv, () -> {
-				Channel c = bserv.accept(8080);
+				Channel c = bserv.accept(8082);
 
 				try {
 					byte[] bytes = paragraph.getBytes();
@@ -250,7 +291,7 @@ public class Main {
 			});
 
 			Task taclient = new Task(bclient, () -> {
-				Channel c = bclient.connect("serveur", 8080);
+				Channel c = bclient.connect("serveur", 8082);
 				System.out.println("the client is connected to the serv");
 				try {
 					byte[] bytes = paragraph.getBytes();
