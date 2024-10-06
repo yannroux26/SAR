@@ -5,6 +5,8 @@ import java.nio.ByteBuffer;
 import dev.Broker;
 import dev.Channel;
 import dev.DisconnectedException;
+import dev.MessageQueue;
+import dev.QueueBroker;
 import dev.Task;
 
 public class Main {
@@ -35,58 +37,59 @@ public class Main {
 	public static boolean test1() {
 		try {
 			Broker bserv = new Broker("serveur");
-			Broker bclient1 = new Broker("client1");
+			QueueBroker qbserv = new QueueBroker(bserv);
+			Broker bclient = new Broker("client1");
+			QueueBroker qbclient = new QueueBroker(bclient);
 
-			Task taserv = new Task(bserv, () -> {
+			Task taserv = new Task(qbserv, () -> {
+
+				MessageQueue msgq = qbserv.accept(8080);
+				System.out.println("server is accepting");
+
 				try {
-					Channel channel = bserv.accept(8080);
+					for (int i = 0; i < 256; i++) {
+						// the server receive the message
+						byte[] buffer;
+						buffer = msgq.receive();
 
-					byte[] buffer = new byte[256];
-					int bytesRead;
-					try {
-						while ((bytesRead = channel.read(buffer, 0, buffer.length)) > 0) {
-							channel.write(buffer, 0, bytesRead);
-						}
-					} catch (DisconnectedException e) {
-						// nothing to do here
+						// the server echo send back the message
+						msgq.send(buffer, 0, buffer.length);
 					}
-					Thread.sleep(1000);
 
-					channel.disconnect();
-				} catch (Exception e) {
-					System.err.println("Server error: " + e.getMessage());
+					// disconnection
+					msgq.close();
+					System.out.println("server is disconnected");
+
+				} catch (DisconnectedException e) {
+					// the client isn't suppose to be disconnected during this
+					e.printStackTrace();
 				}
 			});
 
-			Task taclient1 = new Task(bclient1, () -> {
-				Channel c = bclient1.connect("serveur", 8080);
+			Task taclient1 = new Task(qbclient, () -> {
+				MessageQueue msgq = qbclient.connect("serveur", 8080);
+				System.out.println("client is connecting");
 
 				try {
 					for (int i = 0; i < 256; i++) {
 						// we write the int
 						byte[] bytes = ByteBuffer.allocate(4).putInt(i).array();
-						int nbw = 0;
-						while (nbw < 4)
-							nbw += c.write(bytes, nbw, bytes.length - nbw);
+						msgq.send(bytes, 0, 4);
 
 						// we read the int
-						byte[] bytesr = new byte[4];
-						int nbr = 0;
-						while (nbr < 4)
-							nbr += c.read(bytesr, nbr, bytes.length - nbr);
+						byte[] bytesr = msgq.receive();
 
 						int repecho = ByteBuffer.wrap(bytesr).getInt();
-
 						assert (repecho == i);
 						System.out.println("echo " + repecho);
 					}
+
+					msgq.close();
+					System.out.println("déconnection du client");
+
 				} catch (DisconnectedException e3) {
 					System.out.println("Le serveur s'est déconnecté");
 				}
-
-				c.disconnect();
-				System.out.println("déconnection du client");
-
 			});
 
 			try {
@@ -114,119 +117,68 @@ public class Main {
 
 		try {
 			Broker bserv = new Broker("serveur2");
+			QueueBroker qbserv = new QueueBroker(bserv);
 			Broker bclient = new Broker("client2");
+			QueueBroker qbclient = new QueueBroker(bclient);
 
-			// Echo Server Task
-			Task taserv = new Task(bserv, () -> {
-				Channel c = bserv.accept(8081);
-				System.out.println("server accepts");
+			Task taserv = new Task(qbserv, () -> {
+
+				MessageQueue msgq = qbserv.accept(8081);
+				System.out.println("server is accepting");
+
 				try {
-					// we read the int first
-					byte[] bytesint = new byte[4];
-					int nbr = 0;
-					while (nbr < 4)
-						nbr += c.read(bytesint, nbr, 4 - nbr);
+					// the server receive the message
+					byte[] buffer;
+					buffer = msgq.receive();
 
-					int sizemsg = ByteBuffer.wrap(bytesint).getInt();
-					byte[] bytesr = new byte[sizemsg];
+					// the server echo send back the message
+					msgq.send(buffer, 0, buffer.length);
 
-					// then we read the message
-					nbr = 0;
-					while (nbr < sizemsg)
-						nbr += c.read(bytesr, nbr, sizemsg - nbr);
-					
-					// test if the message is correct
-					String rep = new String(bytesr);
-//					System.out.println("serv lit " + rep);
-					assert (rep.equals(sentence)):"The server read "+rep+" instead of "+sentence;
-					
-					// we write the int first
-					int nbw = 0;
-					while (nbw < 4)
-						nbw += c.write(bytesint, nbw, 4 - nbw);
+					// disconnection
+					msgq.close();
+					System.out.println("server is disconnected");
 
-					// then we write the message
-					nbw = 0;
-					while (nbw < sizemsg)
-						nbw += c.write(bytesr, nbw, sizemsg - nbw);
-
-				} catch (DisconnectedException e3) {
-					System.out.println("serv is in dandling mode");
+				} catch (DisconnectedException e) {
+					// the client isn't suppose to be disconnected during this
+					e.printStackTrace();
 				}
-
-				c.disconnect();
-				System.out.println("serveur's disconnection");
-
 			});
 
-			// Client Task
-			Task taclient = new Task(bclient, () -> {
-				Channel c = bclient.connect("serveur2", 8081);
-				System.out.println("client connects");
+			Task taclient = new Task(qbclient, () -> {
+				MessageQueue msgq = qbclient.connect("serveur2", 8081);
+				System.out.println("client is connecting");
 
 				try {
+					// we write the sentence
 					byte[] bytes = sentence.getBytes();
-					int l = bytes.length;
-					byte[] bytesint = ByteBuffer.allocate(4).putInt(l).array();
+					msgq.send(bytes, 0, bytes.length);
 
-					// we write the int first
-					int nbw = 0;
-					while (nbw < 4)
-						nbw += c.write(bytesint, nbw, 4 - nbw);
-//					System.out.println("client write " + l);
+					// we read the sentence
+					byte[] bytesr = msgq.receive();
 
-					// then we write the message
-					nbw = 0;
-					while (nbw < l)
-						nbw += c.write(bytes, nbw, l - nbw);
-//					System.out.println("client write " + sentence);
+					String repecho = new String(bytesr);
+					assert (repecho == sentence);
+					System.out.println("echo " + repecho);
 
-					// we read the int first
-					bytesint = new byte[4];
-					int nbr = 0;
-					while (nbr < 4)
-						nbr += c.read(bytesint, nbr, 4 - nbr);
-					
-					// test the int value
-					int sizemsg = ByteBuffer.wrap(bytesint).getInt();
-//					System.out.println("client lit " + sizemsg);
-					assert (sizemsg == l):"Client read a message of size "+sizemsg+" instead of the "+l+"that has been send";
-
-					// then we read the message
-					byte[] bytesr = new byte[sizemsg];
-					nbr = 0;
-					while (nbr < sizemsg)
-						nbr += c.read(bytesr, nbr, sizemsg - nbr);
-					
-					// test if the message is correct
-					String rep = new String(bytesr);
-//					System.out.println("client lit " + rep);
-					assert (rep.equals(sentence));
-
-					System.out.println("echo " + rep);
+					msgq.close();
+					System.out.println("déconnection du client");
 
 				} catch (DisconnectedException e3) {
-					System.out.println("client is in dandling mode");
+					System.out.println("Le serveur s'est déconnecté");
 				}
-
-				c.disconnect();
-				System.out.println("client's disconnection");
-
 			});
 
 			try {
 				taclient.join();
 				taserv.join();
 			} catch (InterruptedException e) {
+				// the server shouldn't disconnect here
 				e.printStackTrace();
 			}
 
 		} catch (IllegalAccessException e1) {
 			System.out.println("Broker's creation failed");
 			e1.printStackTrace();
-			return false;
-		} catch (Exception e) {
-			e.printStackTrace();
 			return false;
 		}
 
@@ -238,122 +190,78 @@ public class Main {
 	 * test l'envois d'une phrase plus grande que le circular buffer
 	 */
 	public static boolean test3() {
-		String paragraph = "Quis enim aut eum diligat quem metuat, aut eum a quo se metui putet? Coluntur tamen simulatione dumtaxat ad tempus. Quod si forte, ut fit plerumque, ceciderunt, tum intellegitur quam fuerint inopes amicorum. Quod Tarquinium dixisse ferunt, tum exsulantem se intellexisse quos fidos amicos habuisset, quos infidos, cum iam neutris gratiam referre posset.";
+		String sentence = "\n"
+				+ "\n"
+				+ "Quam ob rem circumspecta cautela observatum est deinceps et cum edita montium petere coeperint grassatores, loci iniquitati milites cedunt. ubi autem in planitie potuerint reperiri, quod contingit adsidue, nec exsertare lacertos nec crispare permissi tela, quae vehunt bina vel terna, pecudum ritu inertium trucidantur.\n"
+				+ "\n"
+				+ "Advenit post multos Scudilo Scutariorum tribunus velamento subagrestis ingenii persuasionis opifex callidus. qui eum adulabili sermone seriis admixto solus omnium proficisci pellexit vultu adsimulato saepius replicando quod flagrantibus votis eum videre frater cuperet patruelis, siquid per inprudentiam gestum est remissurus ut mitis et clemens, participemque eum suae maiestatis adscisceret, futurum laborum quoque socium, quos Arctoae provinciae diu fessae poscebant.\n"
+				+ "\n"
+				+ "Et quia Montius inter dilancinantium manus spiritum efflaturus Epigonum et Eusebium nec professionem nec dignitatem ostendens aliquotiens increpabat, qui sint hi magna quaerebatur industria, et nequid intepesceret, Epigonus e Lycia philosophus ducitur et Eusebius ab Emissa Pittacas cognomento, concitatus orator, cum quaestor non hos sed tribunos fabricarum insimulasset promittentes armorum si novas res agitari conperissent.";
 
 		try {
 			Broker bserv = new Broker("serveur3");
+			QueueBroker qbserv = new QueueBroker(bserv);
 			Broker bclient = new Broker("client3");
+			QueueBroker qbclient = new QueueBroker(bclient);
 
-			Task taserv = new Task(bserv, () -> {
-				Channel c = bserv.accept(8082);
+			Task taserv = new Task(qbserv, () -> {
+
+				MessageQueue msgq = qbserv.accept(8083);
+				System.out.println("server is accepting");
 
 				try {
-					byte[] bytes = paragraph.getBytes();
-					int l = bytes.length;
-					System.out.println("nb bytes a écrire :" + l);
-					byte[] bytesr = new byte[l];
+					// the server receive the message
+					byte[] buffer;
+					buffer = msgq.receive();
 
-					int nbpassage = l / 63;
-					int nbr = 0;
-					for (int i = 0; i < nbpassage; i++) {
-						nbr += c.read(bytesr, i * 63, 63);
-						System.out.println(nbr + " bytes lus par le serv");
-					}
-					if (l % 63 != 0) {
-						nbr += c.read(bytesr, nbpassage * 63, l - 63 * nbpassage);
-						System.out.println(nbr + " bytes lus par le serv");
-					}
+					// the server echo send back the message
+					msgq.send(buffer, 0, buffer.length);
 
-					String rep = new String(bytesr);
+					// disconnection
+					msgq.close();
+					System.out.println("server is disconnected");
 
-					if (!rep.equals(paragraph)) {
-						System.out.println(
-								"The paragraph has been misread, read :\n" + rep + "\ninstead of:\n" + paragraph);
-						// return false;
-					}
-					System.out.println("serv read :" + rep);
-					System.out.println("FIN LECTURE PAR LE SERVEUR");
-
-					int nbpassagew = l / 63;
-					int nbw = 0;
-					for (int i = 0; i < nbpassagew; i++) {
-						nbw += c.write(bytesr, i * 63, 63);
-						System.out.println(nbw + " bytes écrits par le serv");
-					}
-					if (l % 63 != 0) {
-						nbw += c.write(bytesr, nbpassagew * 63, l - 63 * nbpassagew);
-						System.out.println(nbw + " bytes écrits par le serv");
-					}
-
-				} catch (DisconnectedException e3) {
-					System.out.println("serv is in dandling mode");
+				} catch (DisconnectedException e) {
+					// the client isn't suppose to be disconnected during this
+					e.printStackTrace();
 				}
-
-				c.disconnect();
-				System.out.println("serveur's disconnection");
-
 			});
 
-			Task taclient = new Task(bclient, () -> {
-				Channel c = bclient.connect("serveur3", 8082);
-				System.out.println("the client is connected to the serv");
+			Task taclient = new Task(qbclient, () -> {
+				MessageQueue msgq = qbclient.connect("serveur3", 8083);
+				System.out.println("client is connecting");
+
 				try {
-					byte[] bytes = paragraph.getBytes();
-					int l = bytes.length;
+					// we write the sentence
+					byte[] bytes = sentence.getBytes();
+					msgq.send(bytes, 0, bytes.length);
 
-					int nbpassagew = l / 63;
-					int nbw = 0;
-					for (int i = 0; i < nbpassagew; i++) {
-						nbw += c.write(bytes, i * 63, 63);
-						System.out.println(nbw + " bytes écrits par le client");
-					}
-					if (l % 63 != 0)
-						nbw += c.write(bytes, nbpassagew * 63, l - 63 * nbpassagew);
-					System.out.println(nbw + " bytes écrits par le client");
+					// we read the sentence
+					byte[] bytesr = msgq.receive();
 
-					System.out.println("FIN ÉCRITURE PAR LE CLIENT");
+					String repecho = new String(bytesr);
+					assert (repecho == sentence);
+					System.out.println("echo " + repecho);
 
-					byte[] bytesr = new byte[l];
-
-					int nbpassage = l / 63;
-					int nbr = 0;
-					for (int i = 0; i < nbpassage; i++) {
-						nbr += c.read(bytesr, i * 63, 63);
-						System.out.println(nbw + " bytes lus par le client");
-					}
-					if (l % 63 != 0) {
-						nbr += c.read(bytesr, nbpassage * 63, l - 63 * nbpassage);
-						System.out.println(nbw + " bytes lus par le client");
-					}
-
-					String rep = new String(bytesr);
-					assert (rep.equals(paragraph));
-					System.out.println(rep + " est passé par l echo");
-
-					System.out.println("FIN LECTURE PAR LE CLIENT");
+					msgq.close();
+					System.out.println("déconnection du client");
 
 				} catch (DisconnectedException e3) {
-					System.out.println("client is in dandling mode");
+					System.out.println("Le serveur s'est déconnecté");
 				}
-
-				c.disconnect();
-				System.out.println("client's disconnection");
-
 			});
 
 			try {
 				taclient.join();
 				taserv.join();
 			} catch (InterruptedException e) {
+				// the server shouldn't disconnect here
 				e.printStackTrace();
 			}
 
 		} catch (IllegalAccessException e1) {
 			System.out.println("Broker's creation failed");
 			e1.printStackTrace();
-			return false;
-		} catch (Exception e) {
-			e.printStackTrace();
 			return false;
 		}
 

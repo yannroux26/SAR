@@ -9,7 +9,7 @@ public class MessageQueue {
 		c = channel;
 	}
 
-	void send(byte[] bytes, int offset, int length) throws DisconnectedException {
+	public void send(byte[] bytes, int offset, int length) throws DisconnectedException {
 			// We write the length of the message first
 			byte[] len = ByteBuffer.allocate(4).putInt(length).array();
 
@@ -23,7 +23,7 @@ public class MessageQueue {
 				nbw += c.write(bytes, offset + nbw, length - nbw);
 	}
 
-	byte[] receive() throws DisconnectedException {
+	public byte[] receive() throws DisconnectedException {
 			// We read the length of the message first
 			byte[] len = new byte[4];
 
@@ -32,9 +32,9 @@ public class MessageQueue {
 				nbr += c.read(len, nbr, 4 - nbr);
 			
 			int length = ByteBuffer.wrap(len).getInt();
-			
+
 			// then we read the message
-			byte[] bytes = new byte[4];
+			byte[] bytes = new byte[length];
 			nbr = 0;
 			while (nbr < length)
 				nbr += c.read(bytes, nbr, length - nbr);
@@ -42,11 +42,11 @@ public class MessageQueue {
 			return bytes;
 	}
 
-	void close() {
+	public void close() {
 		c.disconnect();
 	}
 
-	boolean closed() {
+	public boolean closed() {
 		return c.disconnected();
 	}
 }
