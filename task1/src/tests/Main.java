@@ -10,12 +10,20 @@ import dev.Task;
 public class Main {
 
 	public static void main(String[] args) {
-//		boolean t1 = test1();
-//		assert (t1);
+		boolean t1 = test1();
+		assert (t1);
+		try {
+			Thread.currentThread().sleep(500);
+		} catch (InterruptedException e) {
+		}
 		boolean t2 = test2();
 		assert (t2);
-//		boolean t3 = test3();
-//		assert (t3);
+		try {
+			Thread.currentThread().sleep(500);
+		} catch (InterruptedException e) {
+		}
+		boolean t3 = test3();
+		assert (t3);
 		System.out.println("That's all folks");
 	}
 
@@ -105,9 +113,10 @@ public class Main {
 		String sentence = "this sentence should be print on the shell";
 
 		try {
-			Broker bserv = new Broker("serveur");
-			Broker bclient = new Broker("client");
+			Broker bserv = new Broker("serveur2");
+			Broker bclient = new Broker("client2");
 
+			// Echo Server Task
 			Task taserv = new Task(bserv, () -> {
 				Channel c = bserv.accept(8081);
 				System.out.println("server accepts");
@@ -119,24 +128,18 @@ public class Main {
 						nbr += c.read(bytesint, nbr, 4 - nbr);
 
 					int sizemsg = ByteBuffer.wrap(bytesint).getInt();
-					System.out.println("serv lit " + sizemsg);
 					byte[] bytesr = new byte[sizemsg];
 
 					// then we read the message
-					System.out.println("AAAAAAAAAAAA");
 					nbr = 0;
-					while (nbr < sizemsg) {
-						System.out.println("AAAAAAAAAAAA");
+					while (nbr < sizemsg)
 						nbr += c.read(bytesr, nbr, sizemsg - nbr);
-						System.out.println("serv have read " + nbr+"bytes");
-						}
 					
-					
-					// test si le message lu est bon
+					// test if the message is correct
 					String rep = new String(bytesr);
-					System.out.println("serv lit " + rep);
+//					System.out.println("serv lit " + rep);
 					assert (rep.equals(sentence)):"The server read "+rep+" instead of "+sentence;
-
+					
 					// we write the int first
 					int nbw = 0;
 					while (nbw < 4)
@@ -145,7 +148,7 @@ public class Main {
 					// then we write the message
 					nbw = 0;
 					while (nbw < sizemsg)
-						nbw += c.read(bytesr, nbw, sizemsg - nbw);
+						nbw += c.write(bytesr, nbw, sizemsg - nbw);
 
 				} catch (DisconnectedException e3) {
 					System.out.println("serv is in dandling mode");
@@ -156,8 +159,9 @@ public class Main {
 
 			});
 
+			// Client Task
 			Task taclient = new Task(bclient, () -> {
-				Channel c = bclient.connect("serveur", 8081);
+				Channel c = bclient.connect("serveur2", 8081);
 				System.out.println("client connects");
 
 				try {
@@ -169,13 +173,13 @@ public class Main {
 					int nbw = 0;
 					while (nbw < 4)
 						nbw += c.write(bytesint, nbw, 4 - nbw);
-					System.out.println("client write " + l);
+//					System.out.println("client write " + l);
 
 					// then we write the message
 					nbw = 0;
 					while (nbw < l)
-						nbw += c.read(bytes, nbw, l - nbw);
-					System.out.println("client write " + sentence);
+						nbw += c.write(bytes, nbw, l - nbw);
+//					System.out.println("client write " + sentence);
 
 					// we read the int first
 					bytesint = new byte[4];
@@ -185,7 +189,7 @@ public class Main {
 					
 					// test the int value
 					int sizemsg = ByteBuffer.wrap(bytesint).getInt();
-					System.out.println("client lit " + sizemsg);
+//					System.out.println("client lit " + sizemsg);
 					assert (sizemsg == l):"Client read a message of size "+sizemsg+" instead of the "+l+"that has been send";
 
 					// then we read the message
@@ -194,9 +198,9 @@ public class Main {
 					while (nbr < sizemsg)
 						nbr += c.read(bytesr, nbr, sizemsg - nbr);
 					
-					// test si le message lu est bon
+					// test if the message is correct
 					String rep = new String(bytesr);
-					System.out.println("client lit " + rep);
+//					System.out.println("client lit " + rep);
 					assert (rep.equals(sentence));
 
 					System.out.println("echo " + rep);
@@ -237,8 +241,8 @@ public class Main {
 		String paragraph = "Quis enim aut eum diligat quem metuat, aut eum a quo se metui putet? Coluntur tamen simulatione dumtaxat ad tempus. Quod si forte, ut fit plerumque, ceciderunt, tum intellegitur quam fuerint inopes amicorum. Quod Tarquinium dixisse ferunt, tum exsulantem se intellexisse quos fidos amicos habuisset, quos infidos, cum iam neutris gratiam referre posset.";
 
 		try {
-			Broker bserv = new Broker("serveur");
-			Broker bclient = new Broker("client");
+			Broker bserv = new Broker("serveur3");
+			Broker bclient = new Broker("client3");
 
 			Task taserv = new Task(bserv, () -> {
 				Channel c = bserv.accept(8082);
@@ -291,7 +295,7 @@ public class Main {
 			});
 
 			Task taclient = new Task(bclient, () -> {
-				Channel c = bclient.connect("serveur", 8082);
+				Channel c = bclient.connect("serveur3", 8082);
 				System.out.println("the client is connected to the serv");
 				try {
 					byte[] bytes = paragraph.getBytes();

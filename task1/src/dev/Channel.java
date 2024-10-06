@@ -49,8 +49,8 @@ public class Channel {
 					nbytes++;
 				}
 				if (nbytes != 0)
-					synchronized (outbuffer) {
-						outbuffer.notify();
+					synchronized (inbuffer) {
+						inbuffer.notify();
 					}
 			}
 		} catch (DisconnectedException e) {
