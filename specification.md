@@ -1,12 +1,19 @@
-# Task 2 : Canaux de communication permettant d'envoyer et recevoir des messages complets
+# Task 3 : Canaux de communication permettant d'envoyer et recevoir des messages complets avec interface événementiel
 
-Pour écrire et recevoir des messages, nous utilisons des **Tasks**, des **QueueBrokers** et des **MessageQueues**.
+Pour écrire et recevoir des messages, nous utilisons des **Tasks**, des **QueueBrokers** et des **MessageQueues**. Mais cette fois-ci l'utilisateur doit avoir l'illusion que tout fonctionne en événementiel. En réalité, les **brokers** et **channel** et tout ce qui provient de la task1 est Thread Oriented avec des appels bloquants.
+
+On utilisera une pompe de threads **ThreadPump** qui exécutera les runnables les uns après les autres.
 
 Deux tâches utiliseront un **MessageQueue** pour communiquer par échanges de messages. Pour mettre en liason deux tasks, nous utiliserons des **queueBrokers** identifiés par des noms uniques.
 
 
 ## QueueBroker
-Un **queueBroker** se connecte à un autre en utilisant la méthode **connect()**, cela nécessite alors le nom (unique) du **queueBroker** cible et un numéro de port. De l'autre côté, le **queueBroker** doit utiliser la méthode **accept()** en donnant le même numéro de port. Un QueueMessage est ensuite créé. Les **queueBrokers** sont synchronisés (tâches simultanées) mais pas les messageQueues.
+La création d'un broker créer maintenant un **ConnectListener** et un **AcceptListener**.
+Un **queueBroker** se connecte à un autre en utilisant la méthode **connect(String name, int port, ConnectListener listener)**, cela nécessite alors le nom (unique) du **queueBroker** cible et un numéro de port. Une fois le **connect()** terminé, il appelle le ConnectListener fourni en argument et codé par l'utilisateur. Un **QueueMessage** est ensuite créé dans le cas réussi. Puis il exécute soit la méthode **connected(MessageQueue queue)** soit la méthode **refused()** en fonction du résultat du **connect()**.
+
+De l'autre côté, le **queueBroker** doit utiliser la méthode **bind(int port, AcceptListener listener)** en donnant le même numéro de port. Le **queueBroker** attend un **connect()**. Un **QueueMessage** est ensuite créé et appelle la méthode **accepted(MessageQueue queue)** du AcceptListener fourni. 
+Il est aussi possible de fermer le bind avec la méthode **unbind(int port)**.
+
 
 Il peut y avoir plusieurs **queueBrokers** mais un seul est aussi possible (pas recommandé).
 Un **queueBroker** peut être lié à plusieurs tâches mais un seul est aussi possible. Et inversement.
@@ -15,10 +22,10 @@ Un **queueBroker** a un nom unique. Mais ses numéros de ports lui sont propres.
 ## MessageQueue
 Un **messageQueue** est un flux de paquets (=messages) point à point.
 Full-duplex, chaque point d'extrémité peut être utilisé pour lire ou écrire.
-Les **messageQueues** utilisent UDP, ils sont fifo, fonctionnent en packets et non en flux d'octets. Mais ne sont plus lossless.
+Les **messageQueues** utilisent UDP, ils sont fifo, fonctionnent en packets et non en flux d'octets. Mais ne sont plus lossless. Un Listener prévient de l'arrivée d'un message.
 
 ### lecture/écriture
-La méthode **byte[] receive** stocke le message lu dans le buffer. L'opération de lecture se bloque jusqu'à lecture complète du message. Même fonctionnement pour la méthode **void send(byte[] bytes, int offset, int length)**, l'écriture se fait à partir de l offset et le message jusqu'à offset+length. Nous avons les règles suivantes : 
+La méthode **byte[] receive** stocke le message lu dans le buffer. L'opération de lecture se bloque jusqu'à lecture complète du message. Même fonctionnement pour la méthode **boolean send(byte[] bytes, int offset, int length)**, l'écriture se fait à partir de l offset et le message jusqu'à offset+length. Renvois True si le message peut être envoyé false sinon. Nous avons les règles suivantes : 
 
 - Les deux tâches peuvent lire ou écrire simultanément à l'une ou l'autre des extrémités des canaux sans risque pour les threads. 
 - Localement, à l'une des extrémités, deux tâches, l'une lisant et l'autre écrivant, opérant simultanément, sont également sûres. 
