@@ -23,7 +23,7 @@ public class Channel {
 		this.rname = name;
 	}
 
-	public synchronized int read(byte[] bytes, int offset, int length)
+	public int read(byte[] bytes, int offset, int length)
 			throws DisconnectedException {
 		if (disconnected)
 			throw new DisconnectedException();
@@ -65,7 +65,7 @@ public class Channel {
 		return nbytes;
 	}
 
-	public synchronized int write(byte[] bytes, int offset, int length)
+	public int write(byte[] bytes, int offset, int length)
 			throws DisconnectedException {
 		if (disconnected)
 			throw new DisconnectedException();

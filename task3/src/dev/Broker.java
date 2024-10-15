@@ -46,7 +46,7 @@ public class Broker {
 			rdv = rdvmap.get(port);
 			while (rdv == null) {
 				try {
-					rdv.wait();
+					rdvmap.wait();
 				} catch (InterruptedException e) {
 					// nothing to do here
 				}
