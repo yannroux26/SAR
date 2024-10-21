@@ -1,14 +1,14 @@
 package dev;
 
-import java.util.ArrayList;
+import java.util.HashMap;
 
 public class QueueBroker {
 	Broker broker;
-	ArrayList<Integer> usedport;
+	HashMap<Integer, Task> usedport;
 
 	public QueueBroker(String name) throws IllegalAccessException {
 		this.broker = new Broker(name);
-		this.usedport = new ArrayList<Integer>();
+		this.usedport = new HashMap<Integer, Task>();
 	}
 
 	String name() {
@@ -20,26 +20,30 @@ public class QueueBroker {
 	}
 
 	public boolean bind(int port, AcceptListener listener) {
-		// TODO S'OCCUPER DES RETOURS
+		if (usedport.containsKey(port))
+			return false;
 		Runnable r = () -> {
 			MessageQueue mq = new MessageQueue(broker.accept(port));
 			Runnable rlistener = () -> {
+				unbind(port);
 				listener.accepted(mq);
 			};
 			PompeLair.getSelf().post(new TaskEvent(rlistener));
 		};
-		new Task(this, r);
+		Task threadedtask = new Task(this, r);
+		usedport.put(port, threadedtask);
 		return true;
 	};
 
 	public boolean unbind(int port) {
-		//TODO A CHECK
+		if (!usedport.containsKey(port))
+			return false;
 		Runnable r = () -> {
-			synchronized (this.broker.rdvmap) {
-				this.broker.rdvmap.remove(port);
-			}
+			Task t = usedport.get(port);
+			t.interrupt();
+			usedport.remove(port);
 		};
-		PompeLair.getSelf().post(r);
+		new Task(this, r);
 		return true;
 	}
 
@@ -52,16 +56,15 @@ public class QueueBroker {
 	public boolean connect(String name, int port, ConnectListener listener) {
 		if (BrokerManager.getSelf().get(name) == null)
 			return false;
-		// TODO S OCCUPER DES RETOURS
 		Runnable r = () -> {
-				MessageQueue mq = new MessageQueue(broker.connect(name, port));
-				TaskEvent rlistener = new TaskEvent(() -> {
+			MessageQueue mq = new MessageQueue(broker.connect(name, port));
+			TaskEvent rlistener = new TaskEvent(() -> {
 				if (mq.c != null)
 					listener.connected(mq);
 				else
 					listener.refused();
 			});
-				PompeLair.getSelf().post(rlistener);
+			PompeLair.getSelf().post(rlistener);
 		};
 
 		new Task(this, r);

@@ -84,7 +84,7 @@ public class TestMixte {
 
 						@Override
 						public void received(byte[] msg) {
-							System.out.println("echo" + new String(msg));
+							System.out.println("echo : " + new String(msg));
 							queue.close();
 						}
 
@@ -94,12 +94,10 @@ public class TestMixte {
 							sm.release();
 						}
 					});
-					System.out.println("avant send");
 					byte[] msg = "This sentence should be printed on the shell".getBytes();
 					if (!queue.send(msg)) {
-						System.out.println("listener pas instanciés");
+						System.out.println("listener not created");
 					}
-					System.out.println("après send");
 				}
 			});
 			

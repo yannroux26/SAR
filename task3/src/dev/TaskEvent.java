@@ -1,27 +1,32 @@
 package dev;
 
-public class TaskEvent extends Thread{
+public class TaskEvent extends Thread {
 	Runnable r;
-	
+	boolean alive;
+
 	public TaskEvent(Runnable r) {
 		this.r = r;
+		alive = true;
 	}
-	
+
 	void post(Runnable r) {
-		PompeLair.getSelf().post(this);
+		if (alive)
+			PompeLair.getSelf().post(this);
 	}
+
 	static TaskEvent task() {
 		TaskEvent t = (TaskEvent) Thread.currentThread();
 		return t;
 	}
+
 	void kill() {
-		//TODO
+		alive = false;
 	}
+
 	boolean killed() {
-		//TODO
-		return true;
+		return !alive;
 	}
-	
+
 	public void run() {
 		r.run();
 	}
