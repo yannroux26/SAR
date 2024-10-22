@@ -13,25 +13,21 @@ Deux tâches utiliseront un **Channel** pour communiquer par échanges de messag
 Un broker utilise un **ConnectListener** et un **AcceptListener**.
 Un **Broker** se connecte à un autre en utilisant la méthode **connect(String name, int port, ConnectListener listener)**, cela nécessite alors le nom (unique) du **Broker** cible et un numéro de port. Une fois le **connect()** terminé, il appelle le ConnectListener fourni en argument et codé par l'utilisateur. Un **Channel** est ensuite créé dans le cas réussi. Puis il exécute soit la méthode **connected(Channel queue)** soit la méthode **refused()** en fonction du résultat du **connect()**.
 
-De l'autre côté, le **Broker** doit utiliser la méthode **bind(int port, AcceptListener listener)** en donnant le même numéro de port. Le **Broker** attend un **connect()**. Un **Channel** est ensuite créé et appelle la méthode **accepted(Channel queue)** du AcceptListener fourni. 
+De l'autre côté, le **Broker** doit utiliser la méthode **bind(int port, AcceptListener listener)** en donnant le même numéro de port. Le **Broker** attend un **connect()**. Un **Channel** est ensuite créé et appelle la méthode **accepted(Channel channel)** du AcceptListener fourni. 
 Il est aussi possible de fermer le bind avec la méthode **unbind(int port)** même si le bind se ferme tout seul si on se connecte..
 
 
-Il peut y avoir plusieurs **Brokers** mais un seul est aussi possible (pas recommandé).
+Il peut y avoir plusieurs **Brokers** mais un seul est aussi possible mais pas recommandé car tout l'utiliserais alors le rendant moins performant et moins clair d'utilisation.
 Un **Broker** peut être lié à plusieurs tâches mais un seul est aussi possible. Et inversement.
 Un **Broker** a un nom unique. Mais ses numéros de ports lui sont propres.
 
 ## Channel
 Un **Channel** est un flux d'octets point à point.
 Full-duplex, chaque point d'extrémité peut être utilisé pour lire ou écrire.
-Les **Channels** utilisent TCP, ils sont fifo, fonctionnent en flux d'octets. Mais ne sont plus lossless. Un Listener prévient de l'arrivée d'un message.
+Les **Channels** utilisent TCP, ils sont fifo lossless, fonctionnent en flux d'octets. Un Listener prévient de l'arrivée d'un message.
 
 ### lecture/écriture
-La méthode **byte[] receive** stocke le message lu dans le buffer. L'opération de lecture se bloque jusqu'à lecture complète du message. Même fonctionnement pour la méthode **boolean send(byte[] bytes, int offset, int length)**, l'écriture se fait à partir de l offset et le message jusqu'à offset+length. Renvois True si le message peut être envoyé false sinon. Nous avons les règles suivantes : 
-
-- Les deux tâches peuvent lire ou écrire simultanément à l'une ou l'autre des extrémités des canaux sans risque pour les threads. 
-- Localement, à l'une des extrémités, deux tâches, l'une lisant et l'autre écrivant, opérant simultanément, sont également sûres. 
-- Toutefois, les opérations de lecture ou d'écriture simultanées ne sont pas sûres sur le même point d'extrémité.  
+La méthode **byte[] receive** stocke le message lu dans le buffer. L'opération de lecture est non bloquante. Même fonctionnement pour la méthode **boolean send(byte[] bytes, int offset, int length)**, l'écriture se fait à partir de l offset et le message jusqu'à offset+length. Renvois True si le message peut être envoyé false sinon. 
 
 ### Déconnexion
 Lorsque l'on veut arrêter d'utiliser un **Channel** on peut le déconnecter avec la méthode **disconnect()** de **Channel**. Il faut alors vérifier avec **disconnected()** si on est encore connecté. On peut aussi ajouter une déconnection automatique au bout d'une durée à définir.
